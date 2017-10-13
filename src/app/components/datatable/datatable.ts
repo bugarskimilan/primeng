@@ -491,10 +491,10 @@ export class ScrollableView implements AfterViewInit,AfterViewChecked,OnDestroy 
             <ng-template [ngIf]="scrollable">
                 <div class="ui-datatable-scrollable-wrapper ui-helper-clearfix" [ngClass]="{'max-height':scrollHeight}">
                     <div *ngIf="hasFrozenColumns()" [pScrollableView]="frozenColumns" frozen="true"
-                        [headerColumnGroup]="frozenHeaderColumnGroup" [footerColumnGroup]="frozenFooterColumnGroup" 
+                        [headerColumnGroup]="frozenHeaderColumnGroup" [footerColumnGroup]="frozenFooterColumnGroup"
                         [ngStyle]="{'width':this.frozenWidth}" class="ui-datatable-scrollable-view ui-datatable-frozen-view"></div>
                     <div [pScrollableView]="scrollableColumns" [ngStyle]="{'width':this.unfrozenWidth, 'left': this.frozenWidth}"
-                        [headerColumnGroup]="scrollableHeaderColumnGroup" [footerColumnGroup]="scrollableFooterColumnGroup" 
+                        [headerColumnGroup]="scrollableHeaderColumnGroup" [footerColumnGroup]="scrollableFooterColumnGroup"
                         class="ui-datatable-scrollable-view" [virtualScroll]="virtualScroll" (onVirtualScroll)="onVirtualScroll($event)"
                         [ngClass]="{'ui-datatable-unfrozen-view': hasFrozenColumns()}"></div>
                 </div>
@@ -587,16 +587,10 @@ export class DataTable implements AfterViewChecked,AfterViewInit,AfterContentIni
     @Input() globalFilter: any;
 
     @Input() sortMode: string = 'single';
-
-    @Input() sortField: string;
-
-    @Input() sortOrder: number = 1;
     
     @Input() defaultSortOrder: number = 1;
     
     @Input() groupField: string;
-
-    @Input() multiSortMeta: SortMeta[];
     
     @Input() contextMenu: any;
     
@@ -677,6 +671,8 @@ export class DataTable implements AfterViewChecked,AfterViewInit,AfterContentIni
     @Input() enableLoader: boolean = true;
     
     @Input() virtualScrollDelay: number = 500;
+  
+    @Input() rowGroupExpandMode: string = 'multiple';
     
     @Output() valueChange: EventEmitter<any[]> = new EventEmitter<any[]>();
     
@@ -783,6 +779,12 @@ export class DataTable implements AfterViewChecked,AfterViewInit,AfterContentIni
     public preventSortPropagation: boolean;
     
     public preventRowClickPropagation: boolean;
+  
+    _multiSortMeta: SortMeta[];
+    
+    _sortField: string;
+    
+    _sortOrder: number = 1;
     
     differ: any;
     
@@ -805,7 +807,7 @@ export class DataTable implements AfterViewChecked,AfterViewInit,AfterContentIni
     virtualScrollTimer: any;
     
     virtualScrollableTableWrapper: HTMLDivElement;
-        
+    
     editChanged: boolean;
     
     constructor(public el: ElementRef, public domHandler: DomHandler, public differs: IterableDiffers,
@@ -884,12 +886,46 @@ export class DataTable implements AfterViewChecked,AfterViewInit,AfterContentIni
                 }, this.filterDelay);
             });
         }
-        
+
         this.virtualScrollableTableWrapper = this.domHandler.findSingle(this.el.nativeElement, 'div.ui-datatable-scrollable-table-wrapper');
-        
+
         this.initialized = true;
     }
-    
+  
+  
+  
+    @Input() get multiSortMeta(): SortMeta[]{
+        return this._multiSortMeta;
+    }
+  
+    set multiSortMeta(val: SortMeta[]){
+      this._multiSortMeta = val;
+      if (this.sortMode === 'multiple') {
+        this.sortMultiple();
+      }
+    }
+
+    @Input() get sortField(): string{
+        return this._sortField;
+    }
+
+    set sortField(val: string){
+      this._sortField = val;
+
+      if (this.sortMode === 'single') {
+        this.sortSingle();
+      }
+    }
+
+    @Input() get sortOrder(): number {
+      return this._sortOrder;
+    }
+    set sortOrder(val: number) {
+      this._sortOrder = val;
+      if (this.sortMode === 'single') {
+        this.sortSingle();
+      }
+    }
     @Input() get value(): any[] {
         return this._value;
     }
@@ -1165,7 +1201,6 @@ export class DataTable implements AfterViewChecked,AfterViewInit,AfterContentIni
         if(!column.sortable) {
             return;
         }
-        
         let targetNode = event.target.nodeName;
         if((targetNode == 'TH' && this.domHandler.hasClass(event.target, 'ui-sortable-column')) || ((targetNode == 'SPAN' || targetNode == 'DIV') && !this.domHandler.hasClass(event.target, 'ui-clickable'))) {
             if(!this.immutable) {
@@ -1173,14 +1208,14 @@ export class DataTable implements AfterViewChecked,AfterViewInit,AfterContentIni
             }
             
             let columnSortField = column.sortField||column.field;
-            this.sortOrder = (this.sortField === columnSortField)  ? this.sortOrder * -1 : this.defaultSortOrder;
-            this.sortField = columnSortField;
+            this._sortOrder = (this.sortField === columnSortField)  ? this.sortOrder * -1 : this.defaultSortOrder;
+            this._sortField = columnSortField;
             this.sortColumn = column;
             let metaKey = event.metaKey||event.ctrlKey;
 
             if(this.sortMode == 'multiple') {
                 if(!this.multiSortMeta||!metaKey) {
-                    this.multiSortMeta = [];
+                    this._multiSortMeta = [];
                 }
 
                 this.addSortMeta({field: this.sortField, order: this.sortOrder});
@@ -1349,11 +1384,11 @@ export class DataTable implements AfterViewChecked,AfterViewInit,AfterContentIni
             let targetNode = event.target.nodeName;
             if((targetNode == 'TD' || (targetNode == 'SPAN' && !this.domHandler.hasClass(event.target, 'ui-clickable')))) {
                 if(this.sortField != this.groupField) {
-                    this.sortField = this.groupField;
+                    this._sortField = this.groupField;
                     this.sortSingle();
                 }
                 else {
-                    this.sortOrder = -1 * this.sortOrder;
+                    this._sortOrder = -1 * this.sortOrder;
                     this.sortSingle();
                 }
             }
@@ -2437,6 +2472,11 @@ export class DataTable implements AfterViewChecked,AfterViewInit,AfterContentIni
     }
     
     toggleRowGroup(event: Event, row: any): void {
+  
+        if(!this.expandedRowsGroups) {
+          this.expandedRowsGroups = [];
+        }
+        
         this.rowGroupToggleClick = true;
         let index = this.findExpandedRowGroupIndex(row);
         let rowGroupField = this.resolveFieldData(row, this.groupField);
@@ -2448,7 +2488,11 @@ export class DataTable implements AfterViewChecked,AfterViewInit,AfterContentIni
             });
         }
         else {
-            this.expandedRowsGroups = this.expandedRowsGroups || [];
+  
+            if(this.rowGroupExpandMode === 'single') {
+              this.expandedRowsGroups = [];
+            }
+            
             this.expandedRowsGroups.push(rowGroupField);
             this.onRowGroupExpand.emit({
                 originalEvent: event,
@@ -2459,8 +2503,8 @@ export class DataTable implements AfterViewChecked,AfterViewInit,AfterContentIni
     }
     
     public reset() {
-        this.sortField = null;
-        this.sortOrder = 1;
+        this._sortField = null;
+        this._sortOrder = 1;
         
         this.filteredValue = null;
         this.filters = {};
