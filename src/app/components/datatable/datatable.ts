@@ -1,7 +1,7 @@
 import {NgModule, Component, ElementRef, AfterContentInit, AfterViewInit, AfterViewChecked, OnInit, OnDestroy, Input,
   ViewContainerRef, ViewChild, IterableDiffers,
   Output, EventEmitter, ContentChild, ContentChildren, Renderer2, QueryList, TemplateRef,
-  ChangeDetectorRef, Inject, forwardRef, EmbeddedViewRef, NgZone
+  ChangeDetectorRef, Inject, forwardRef, EmbeddedViewRef, NgZone, ChangeDetectionStrategy
 } from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms'
@@ -511,7 +511,8 @@ export class ScrollableView implements AfterViewInit,AfterViewChecked,OnDestroy 
             <span class="fa fa-arrow-up ui-datatable-reorder-indicator-down" style="position: absolute; display: none;"></span>
         </div>
     `,
-    providers: [DomHandler,ObjectUtils]
+    providers: [DomHandler,ObjectUtils],
+    changeDetection : ChangeDetectionStrategy.OnPush
 })
 export class DataTable implements AfterViewChecked,AfterViewInit,AfterContentInit,OnInit,OnDestroy,BlockableUI {
 
@@ -1793,6 +1794,7 @@ export class DataTable implements AfterViewChecked,AfterViewInit,AfterContentIni
             filters: this.filters,
             filteredValue: this.filteredValue||this.value
         });
+        this.changeDetector.detectChanges();
     }
 
     hasFilter() {

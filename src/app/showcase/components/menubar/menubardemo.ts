@@ -17,7 +17,7 @@ export class MenubarDemo {
                         label: 'New', 
                         icon: 'fa-plus',
                         items: [
-                            {label: 'Project'},
+                            {label: 'Project', routerLink : '/'},
                             {label: 'Other'},
                         ]
                     },

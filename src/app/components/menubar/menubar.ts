@@ -1,4 +1,4 @@
-import {NgModule,Component,ElementRef,AfterViewInit,Input,Output,Renderer2} from '@angular/core';
+import {NgModule,Component,ElementRef,AfterViewInit,Input,Output,Renderer2, ChangeDetectionStrategy} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {DomHandler} from '../dom/domhandler';
 import {MenuItem} from '../common/menuitem';
@@ -13,7 +13,7 @@ import {RouterModule} from '@angular/router';
             <ng-template ngFor let-child [ngForOf]="(root ? item : item.items)">
                 <li *ngIf="child.separator" class="ui-menu-separator ui-widget-content" [ngClass]="{'ui-helper-hidden': child.visible === false}">
                 <li *ngIf="!child.separator" #listItem [ngClass]="{'ui-menuitem ui-widget ui-corner-all':true,'ui-menu-parent':child.items,'ui-menuitem-active':listItem==activeItem}"
-                    (mouseenter)="onItemMouseEnter($event,listItem,child)" (mouseleave)="onItemMouseLeave($event)">
+                    (click)="onItemMouseEnter($event,listItem,child)" (mouseleave)="onItemMouseLeave($event)">
                     <a *ngIf="!child.routerLink" [href]="child.url||'#'" [attr.target]="child.target" [attr.title]="child.title" (click)="itemClick($event, child)"
                          [ngClass]="{'ui-menuitem-link ui-corner-all':true,'ui-state-disabled':child.disabled,'ui-helper-hidden': child.visible === false}" [ngStyle]="child.style" [class]="child.styleClass">
                         <span class="ui-menuitem-icon fa fa-fw" *ngIf="child.icon" [ngClass]="child.icon"></span>
@@ -34,8 +34,10 @@ import {RouterModule} from '@angular/router';
                 <ng-content></ng-content>
             </li>
         </ul>
+        
     `,
-    providers: [DomHandler]
+    providers: [DomHandler],
+    changeDetection : ChangeDetectionStrategy.OnPush
 })
 export class MenubarSub {
 
@@ -48,12 +50,21 @@ export class MenubarSub {
     activeItem: any;
     
     onItemMouseEnter(event: Event, item: HTMLLIElement, menuitem: MenuItem) {
+       
+
         if(menuitem.disabled) {
             return;
         }
+        console.log(menuitem);
+        if(menuitem.items && menuitem.items.length > 0){
+            event.preventDefault();
+            event.stopPropagation();
+        }
         
         this.activeItem = item;
+        
         let nextElement =  <HTMLLIElement> item.children[0].nextElementSibling;
+       
         if(nextElement) {
             let sublist = <HTMLUListElement> nextElement.children[0];
             sublist.style.zIndex = String(++DomHandler.zindex);
